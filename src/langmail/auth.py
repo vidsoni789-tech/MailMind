@@ -49,16 +49,19 @@ def _get_or_create_key() -> bytes:
     return key
 
 
+def _get_fernet() -> Fernet:
+    """Return a Fernet instance using the local encryption key."""
+    return Fernet(_get_or_create_key())
+
+
 def _encrypt(data: str) -> bytes:
     """Encrypt a string using the local Fernet key."""
-    f = Fernet(_get_or_create_key())
-    return f.encrypt(data.encode())
+    return _get_fernet().encrypt(data.encode())
 
 
 def _decrypt(data: bytes) -> str:
     """Decrypt bytes using the local Fernet key."""
-    f = Fernet(_get_or_create_key())
-    return f.decrypt(data).decode()
+    return _get_fernet().decrypt(data).decode()
 
 
 def _save_credentials(creds: Credentials) -> None:

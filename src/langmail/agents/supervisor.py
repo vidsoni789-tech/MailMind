@@ -19,6 +19,7 @@ from langmail.agents.reader import create_email_reader
 from langmail.agents.security import create_security_assessor
 from langmail.agents.writer import create_draft_writer
 from langmail.config import settings
+from langmail.context import assemble_context
 from langmail.prompts.templates import SUPERVISOR_SYSTEM
 from langmail.state import GmailAgentState
 from langmail.tools.db_tools import (
@@ -103,6 +104,60 @@ def _create_task_tool(registry: dict) -> BaseTool:
     return task
 
 
+def _create_load_context_tool() -> BaseTool:
+    """Create the load_draft_context() tool that pre-assembles reply context."""
+
+    @tool(parse_docstring=True)
+    def load_draft_context(
+        thread_id: str,
+        contact_email: str,
+        state: Annotated[GmailAgentState, InjectedState],
+        tool_call_id: Annotated[str, InjectedToolCallId],
+    ) -> Command:
+        """Pre-load context files for the Draft Writer before delegating.
+
+        Assembles four markdown files:
+        - current_thread.md    — full decoded thread being replied to
+        - contact_profile.md   — contact relationship stats from local DB
+        - recent_history.md    — previous thread summaries with this contact
+        - writing_style.md     — user's past sent emails for tone matching
+
+        Thread bodies are cached locally (encrypted) to avoid repeat API calls.
+        Call this before delegating to draft-writer.
+
+        Args:
+            thread_id: Gmail thread ID being replied to.
+            contact_email: Email address of the primary contact.
+        """
+        try:
+            files = assemble_context(thread_id, contact_email)
+            file_list = ", ".join(files.keys())
+            return Command(
+                update={
+                    "files": files,
+                    "messages": [
+                        ToolMessage(
+                            f"Context loaded: {file_list}",
+                            tool_call_id=tool_call_id,
+                        )
+                    ],
+                }
+            )
+        except Exception as e:
+            return Command(
+                update={
+                    "messages": [
+                        ToolMessage(
+                            f"Context load failed: {e}. Draft writer will fetch context via tools.",
+                            tool_call_id=tool_call_id,
+                        )
+                    ]
+                }
+            )
+
+    return load_draft_context
+
+
 @tool(parse_docstring=True)
 def think_tool(reflection: str) -> str:
     """Pause to reason about the current state and plan next steps.
@@ -127,6 +182,7 @@ def create_supervisor() -> object:
     )
 
     task_tool = _create_task_tool(registry)
+    load_context_tool = _create_load_context_tool()
 
     subagent_desc_str = "\n".join(
         f"- {name}: {desc}" for name, desc in SUBAGENT_DESCRIPTIONS.items()
@@ -141,6 +197,7 @@ def create_supervisor() -> object:
 
     supervisor_tools = [
         task_tool,
+        load_context_tool,
         think_tool,
         gmail_fetch,
         gmail_search,

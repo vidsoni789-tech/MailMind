@@ -213,8 +213,34 @@ def sync(
     console.print(f"[bold blue]Starting {mode} sync...[/bold blue]")
     console.print("[yellow]This may take a few minutes on first run.[/yellow]")
 
-    # TODO: implement sync engine in Phase 2
-    rprint("[yellow]Sync engine coming in next release. Stay tuned![/yellow]")
+    from langmail.sync import run_incremental_sync, run_initial_sync
+
+    try:
+        if incremental:
+            stats = run_incremental_sync()
+            rprint(
+                Panel(
+                    f"[green]Incremental sync complete.[/green]\n"
+                    f"Added: {stats['added']}  Updated: {stats['updated']}  "
+                    f"Removed: {stats['removed']}  "
+                    f"({stats['duration_seconds']}s)",
+                    border_style="green",
+                )
+            )
+        else:
+            stats = run_initial_sync(months=months)
+            rprint(
+                Panel(
+                    f"[green]Full sync complete.[/green]\n"
+                    f"Messages indexed: {stats['messages_synced']}\n"
+                    f"Contacts found:   {stats['contacts_found']}\n"
+                    f"Duration:         {stats['duration_seconds']}s",
+                    border_style="green",
+                )
+            )
+    except Exception as e:
+        rprint(f"[red]Sync failed: {e}[/red]")
+        raise typer.Exit(1)
 
 
 # ---------------------------------------------------------------------------

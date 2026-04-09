@@ -155,8 +155,8 @@ langmail/
 - [x] Draft Writer agent (context-aware with tone matching)
 - [x] Supervisor orchestration (parallel sub-agent delegation)
 - [x] CLI interface (check, draft, tasks, watch, sync, privacy, config)
-- [ ] Email sync engine (initial + incremental)
-- [ ] Context assembler (thread history + writing style)
+- [x] Email sync engine (initial + incremental, batch requests, history API)
+- [x] Context assembler (thread cache, contact profile, writing style)
 - [ ] Tests and CI
 - [ ] Documentation and demo
 
