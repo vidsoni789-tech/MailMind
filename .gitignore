@@ -1,0 +1,35 @@
+# Environment
+.env
+.env.*
+!.env.example
+
+# Credentials and secrets — NEVER commit these
+credentials.json
+token.json
+credentials.enc
+*.enc
+
+# Local data
+~/.langmail/
+.langmail/
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+dist/
+build/
+*.egg-info/
+.ruff_cache/
+.mypy_cache/
+.pytest_cache/
+
+# IDE
+.vscode/settings.json
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
