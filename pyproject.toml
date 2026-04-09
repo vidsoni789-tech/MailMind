@@ -10,13 +10,11 @@ dependencies = [
     "langchain>=0.3.0",
     "langgraph>=0.3.0",
     "langchain-anthropic>=0.3.0",
-    "langchain-google-genai>=4.0.0",
     "google-api-python-client>=2.0.0",
     "google-auth-oauthlib>=1.0.0",
     "google-auth-httplib2>=0.2.0",
     "typer>=0.12.0",
     "rich>=13.0.0",
-    "python-dotenv>=1.0.0",
     "cryptography>=42.0.0",
     "pydantic>=2.0.0",
     "httpx>=0.27.0",
@@ -35,6 +33,10 @@ langmail = "langmail.cli:app"
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-v --tb=short"
 
 [tool.ruff]
 line-length = 100
