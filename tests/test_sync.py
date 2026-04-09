@@ -1,8 +1,7 @@
 """Tests for the email sync engine and context assembler."""
 
-from unittest.mock import MagicMock, call, patch
+from unittest.mock import MagicMock, patch
 
-import pytest
 
 
 # ---------------------------------------------------------------------------
@@ -264,7 +263,6 @@ class TestContextAssembler:
     def test_purge_expired_cache(self, tmp_path, monkeypatch):
         """purge_expired_cache should delete files older than TTL."""
         import langmail.context as ctx_mod
-        import time
 
         monkeypatch.setattr(ctx_mod, "CACHE_DIR", tmp_path)
         monkeypatch.setattr(ctx_mod, "settings", MagicMock(cache_ttl_days=0))

@@ -1,35 +1,71 @@
-# Environment
+# ============================================================
+# Environment & Secrets — NEVER commit these
+# ============================================================
 .env
 .env.*
 !.env.example
 
-# Credentials and secrets — NEVER commit these
+# Google OAuth2 client secrets and tokens
 credentials.json
+client_secret.json
+client_secret_*.json
 token.json
-credentials.enc
 *.enc
+*.key
 
-# Local data
+# ============================================================
+# Local data — lives in ~/.langmail/, not the repo
+# ============================================================
 ~/.langmail/
 .langmail/
+*.db
+*.db-shm
+*.db-wal
+last_history_id.txt
 
+# Cache
+cache/
+*.cache
+
+# ============================================================
 # Python
+# ============================================================
 __pycache__/
 *.py[cod]
 *.pyo
 .venv/
 venv/
+.env/
 dist/
 build/
 *.egg-info/
+*.egg
+MANIFEST
+
+# Type checking / linting caches
 .ruff_cache/
 .mypy_cache/
+.pytype/
+
+# Test caches
 .pytest_cache/
+.coverage
+coverage.xml
+htmlcov/
 
+# ============================================================
 # IDE
+# ============================================================
 .vscode/settings.json
+.vscode/launch.json
 .idea/
+*.swp
+*.swo
+*~
 
+# ============================================================
 # OS
+# ============================================================
 .DS_Store
 Thumbs.db
+desktop.ini

@@ -10,8 +10,6 @@ Flow:
 """
 
 import json
-import os
-from pathlib import Path
 
 from cryptography.fernet import Fernet
 from google.auth.transport.requests import Request

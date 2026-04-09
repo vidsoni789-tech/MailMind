@@ -11,7 +11,6 @@ Commands:
     config   — view/edit settings
 """
 
-import json
 import os
 import sys
 import time
@@ -31,10 +30,8 @@ from rich import print as rprint
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
-from rich.text import Text
 
 from langmail.config import ensure_dirs, load_settings, save_settings, settings
-from langmail.state import GmailAgentState
 
 app = typer.Typer(
     name="langmail",
@@ -295,7 +292,7 @@ app.add_typer(privacy_app, name="privacy")
 @privacy_app.command("show")
 def privacy_show():
     """Show what data is stored locally."""
-    from langmail.config import CACHE_DIR, DB_FILE, DATA_DIR
+    from langmail.config import CACHE_DIR, DB_FILE
 
     table = Table(title="Local Data", border_style="blue")
     table.add_column("Location", style="cyan")
@@ -387,9 +384,9 @@ def config(
     data = current.model_dump()
     field_type = type(data.get(key))
     try:
-        if field_type == bool:
+        if field_type is bool:
             data[key] = value.lower() in ("true", "1", "yes")
-        elif field_type == int:
+        elif field_type is int:
             data[key] = int(value)
         else:
             data[key] = value

@@ -9,7 +9,6 @@ The database lives at ~/.langmail/gmail.db and is populated by the sync commands
 import json
 import sqlite3
 from datetime import datetime, timezone
-from pathlib import Path
 
 from langchain_core.tools import tool
 

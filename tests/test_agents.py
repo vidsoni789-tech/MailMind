@@ -5,7 +5,6 @@ create_*() functions return a compiled agent object with the expected
 tool set wired up.
 """
 
-from unittest.mock import MagicMock, patch
 
 
 class TestEmailReaderAgent:

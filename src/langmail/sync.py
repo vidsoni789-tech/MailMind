@@ -21,14 +21,13 @@ import sqlite3
 import time
 from datetime import datetime, timedelta, timezone
 from email.utils import parseaddr, parsedate_to_datetime
-from pathlib import Path
 from typing import Iterator
 
 from rich.console import Console
 from rich.progress import BarColumn, Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
 
 from langmail.auth import get_gmail_service
-from langmail.config import DATA_DIR, DB_FILE, settings
+from langmail.config import DATA_DIR, settings
 from langmail.tools.db_tools import get_db, upsert_contact, upsert_message
 
 console = Console()
