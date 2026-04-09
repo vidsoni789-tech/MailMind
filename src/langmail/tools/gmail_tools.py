@@ -16,6 +16,7 @@ import base64
 import email as email_lib
 from typing import Optional
 
+from googleapiclient.errors import HttpError
 from langchain_core.tools import tool
 
 from langmail.auth import get_gmail_service
@@ -129,11 +130,21 @@ def gmail_read_thread(thread_id: str) -> dict:
     """
     service = get_gmail_service()
 
-    thread = service.users().threads().get(
-        userId="me",
-        id=thread_id,
-        format="full",
-    ).execute()
+    try:
+        thread = service.users().threads().get(
+            userId="me",
+            id=thread_id,
+            format="full",
+        ).execute()
+    except HttpError as e:
+        if e.resp.status == 404:
+            return {
+                "thread_id": thread_id,
+                "error": "Thread not found — it may have been deleted or moved to trash.",
+                "message_count": 0,
+                "messages": [],
+            }
+        raise
 
     messages = [_format_message(msg) for msg in thread.get("messages", [])]
 

@@ -24,6 +24,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
+from googleapiclient.errors import HttpError
+
 from langmail.auth import get_gmail_service
 from langmail.config import CACHE_DIR, settings
 from langmail.tools.db_tools import get_db
@@ -122,11 +124,16 @@ def _fetch_thread(thread_id: str) -> dict:
         return cached
 
     service = get_gmail_service()
-    response = service.users().threads().get(
-        userId="me",
-        id=thread_id,
-        format="full",
-    ).execute()
+    try:
+        response = service.users().threads().get(
+            userId="me",
+            id=thread_id,
+            format="full",
+        ).execute()
+    except HttpError as e:
+        if e.resp.status == 404:
+            return {"thread_id": thread_id, "subject": "(not found)", "messages": []}
+        raise
 
     messages = []
     subject = ""
