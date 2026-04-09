@@ -13,7 +13,8 @@ class TestInitialSync:
     @patch("langmail.sync.get_gmail_service")
     @patch("langmail.sync.get_db")
     @patch("langmail.sync._save_history_id")
-    def test_initial_sync_returns_stats(self, mock_save_hid, mock_get_db, mock_get_svc):
+    @patch("langmail.sync._count_contacts", return_value=2)
+    def test_initial_sync_returns_stats(self, mock_count, mock_save_hid, mock_get_db, mock_get_svc):
         """run_initial_sync should return messages_synced, contacts_found, duration_seconds."""
         mock_svc = MagicMock()
         mock_get_svc.return_value = mock_svc

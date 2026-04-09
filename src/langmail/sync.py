@@ -56,7 +56,7 @@ def _parse_date(raw: str) -> str:
         dt = parsedate_to_datetime(raw)
         return dt.astimezone(timezone.utc).isoformat()
     except Exception:
-        return datetime.utcnow().isoformat()
+        return datetime.now(timezone.utc).isoformat()
 
 
 def _header(headers: list[dict], name: str) -> str:
@@ -70,7 +70,7 @@ def _header(headers: list[dict], name: str) -> str:
 
 def _cutoff_date(months: int) -> str:
     """Return Gmail-format date string N months ago (YYYY/MM/DD)."""
-    cutoff = datetime.utcnow() - timedelta(days=months * 30)
+    cutoff = datetime.now(timezone.utc) - timedelta(days=months * 30)
     return cutoff.strftime("%Y/%m/%d")
 
 

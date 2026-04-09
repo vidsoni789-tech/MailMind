@@ -8,7 +8,7 @@ The database lives at ~/.langmail/gmail.db and is populated by the sync commands
 
 import json
 import sqlite3
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 from langchain_core.tools import tool
@@ -249,7 +249,7 @@ def upsert_message(conn: sqlite3.Connection, msg: dict) -> None:
 def upsert_contact(conn: sqlite3.Connection, email: str, name: str, is_sent: bool) -> None:
     """Insert or update a contact record, incrementing message counts."""
     domain = email.split("@")[-1] if "@" in email else "unknown"
-    now = datetime.utcnow().isoformat()
+    now = datetime.now(timezone.utc).isoformat()
 
     existing = conn.execute(
         "SELECT * FROM contacts WHERE email = ?", (email,)
