@@ -12,9 +12,19 @@ Commands:
 """
 
 import json
+import os
+import sys
 import time
 from pathlib import Path
 from typing import Optional
+
+# Force UTF-8 output on Windows so Rich spinner/box characters render correctly
+if sys.platform == "win32":
+    os.environ.setdefault("PYTHONUTF8", "1")
+    if sys.stdout.encoding != "utf-8":
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    if sys.stderr.encoding != "utf-8":
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
 import typer
 from rich import print as rprint
@@ -77,7 +87,7 @@ def setup(
         run_oauth_flow(credentials_file)
         rprint(
             Panel(
-                "[green]✓ Gmail authorization successful![/green]\n\n"
+                "[green]Gmail authorization successful![/green]\n\n"
                 "Your credentials are encrypted and stored locally.\n"
                 "Run [bold]langmail check[/bold] to see your inbox.",
                 title="Setup Complete",
@@ -324,7 +334,7 @@ def privacy_clear_cache():
     if confirm:
         for f in CACHE_DIR.rglob("*.json"):
             f.unlink()
-        rprint(f"[green]✓ Deleted {count} cached files.[/green]")
+        rprint(f"[green]OK: Deleted {count} cached files.[/green]")
 
 
 @privacy_app.command("clear-all")
@@ -339,7 +349,7 @@ def privacy_clear_all():
     if confirm:
         import shutil
         shutil.rmtree(DATA_DIR, ignore_errors=True)
-        rprint("[green]✓ All local data deleted.[/green]")
+        rprint("[green]OK: All local data deleted.[/green]")
 
 
 # ---------------------------------------------------------------------------
@@ -389,7 +399,7 @@ def config(
 
     from langmail.config import Settings
     save_settings(Settings(**data))
-    rprint(f"[green]✓ {key} = {data[key]}[/green]")
+    rprint(f"[green]OK: {key} = {data[key]}[/green]")
 
 
 # ---------------------------------------------------------------------------

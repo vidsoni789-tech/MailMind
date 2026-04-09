@@ -7,6 +7,11 @@ import json
 import os
 from pathlib import Path
 
+from dotenv import load_dotenv
+
+# Load .env from the current working directory or any parent directory
+load_dotenv()
+
 from pydantic import BaseModel, Field
 
 

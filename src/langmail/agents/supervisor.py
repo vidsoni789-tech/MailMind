@@ -70,11 +70,8 @@ def _create_task_tool(registry: dict) -> BaseTool:
             description: Clear, complete description of what the sub-agent should do.
                          Include all relevant context since the sub-agent cannot see
                          the parent conversation.
-            subagent_type: Which sub-agent to use. Options:
-                           - email-reader: fetch and classify unread emails
-                           - security-assessor: scan an email for threats
-                           - task-extractor: pull action items from a thread
-                           - draft-writer: write a reply draft with context
+            subagent_type: Which sub-agent to use. One of: email-reader,
+                           security-assessor, task-extractor, draft-writer.
         """
         if subagent_type not in registry:
             valid = list(registry.keys())
@@ -116,13 +113,9 @@ def _create_load_context_tool() -> BaseTool:
     ) -> Command:
         """Pre-load context files for the Draft Writer before delegating.
 
-        Assembles four markdown files:
-        - current_thread.md    — full decoded thread being replied to
-        - contact_profile.md   — contact relationship stats from local DB
-        - recent_history.md    — previous thread summaries with this contact
-        - writing_style.md     — user's past sent emails for tone matching
-
-        Thread bodies are cached locally (encrypted) to avoid repeat API calls.
+        Assembles current_thread.md, contact_profile.md, recent_history.md,
+        and writing_style.md into state files. Thread bodies are cached
+        locally (encrypted) to avoid repeat API calls.
         Call this before delegating to draft-writer.
 
         Args:
