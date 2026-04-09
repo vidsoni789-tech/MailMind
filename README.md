@@ -75,6 +75,18 @@ Sub-agents run with **isolated context** — each receives only its task descrip
 | `load_draft_context()` | Pre-load 4 context files into state before delegating to Draft Writer |
 | `think_tool()` | Internal reasoning step (reflection without tool call) |
 
+### Tool Assignment per Agent
+
+| Agent | Tools available |
+|-------|----------------|
+| **Supervisor** | `task`, `load_draft_context`, `think_tool`, `gmail_fetch`, `gmail_search`, `gmail_label`, `db_get_inbox_stats`, `db_lookup_contact`, `db_search_contacts`, `db_get_thread_summaries`, `db_get_sent_snippets` |
+| **Email Reader** | `gmail_fetch`, `gmail_search` |
+| **Security Assessor** | `gmail_read_thread`, `think_security` |
+| **Task Extractor** | `gmail_read_thread`, `think_tasks` |
+| **Draft Writer** | `gmail_read_thread`, `db_lookup_contact`, `db_get_thread_summaries`, `db_get_sent_snippets`, `gmail_create_draft`, `think_draft` |
+
+Sub-agents are intentionally narrow — Email Reader only needs to list/search, Security Assessor only reads threads deeply, Draft Writer has everything needed to write a full context-aware reply. `think_*` tools are private reasoning steps inside each sub-agent (not exposed to the supervisor).
+
 ### Data Flow
 
 ```
