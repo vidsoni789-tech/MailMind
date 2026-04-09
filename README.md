@@ -2,7 +2,7 @@
 
 A multi-agent Gmail assistant built with LangChain and LangGraph. Reads your inbox, drafts context-aware replies, extracts action items, and flags security risks — all running locally with full user control.
 
-> **Status:** Active development — Phase 1 (Gmail auth + core tools)
+> **Status:** Active development — Core agents implemented, CLI ready
 
 ---
 
@@ -146,14 +146,17 @@ langmail/
 ## Roadmap
 
 - [x] Project scaffold and planning
-- [ ] Gmail OAuth2 authentication
-- [ ] SQLite email index + sync
-- [ ] Email Reader agent
-- [ ] Security Assessor agent
-- [ ] Task Extractor agent
-- [ ] Draft Writer agent (with context)
-- [ ] Supervisor orchestration
-- [ ] CLI interface
+- [x] Gmail OAuth2 authentication (encrypted token storage)
+- [x] SQLite email index schema + contact tracking
+- [x] Gmail API tools (fetch, read thread, search, draft, label)
+- [x] Email Reader agent (priority + category classification)
+- [x] Security Assessor agent (phishing + social engineering detection)
+- [x] Task Extractor agent (action items + deadlines)
+- [x] Draft Writer agent (context-aware with tone matching)
+- [x] Supervisor orchestration (parallel sub-agent delegation)
+- [x] CLI interface (check, draft, tasks, watch, sync, privacy, config)
+- [ ] Email sync engine (initial + incremental)
+- [ ] Context assembler (thread history + writing style)
 - [ ] Tests and CI
 - [ ] Documentation and demo
 
