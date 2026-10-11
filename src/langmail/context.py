@@ -90,6 +90,8 @@ def _read_cache(thread_id: str) -> Optional[dict]:
 def _decode_part(part: dict) -> str:
     """Recursively decode a MIME part to plain text."""
     import base64
+    import re
+    import html as html_lib
 
     mime = part.get("mimeType", "")
 
@@ -98,8 +100,22 @@ def _decode_part(part: dict) -> str:
         if data:
             return base64.urlsafe_b64decode(data + "==").decode("utf-8", errors="replace")
 
+    if mime == "text/html":
+        data = part.get("body", {}).get("data", "")
+        if data:
+            raw_html = base64.urlsafe_b64decode(data + "==").decode("utf-8", errors="replace")
+            # Convert breaks and paragraphs to newlines
+            clean = re.sub(r"<(?:br|/p|/div|/tr|/li)\s*/?>", "\n", raw_html, flags=re.IGNORECASE)
+            # Remove scripts and styles
+            clean = re.sub(r"<(?:script|style)[^>]*>[\s\S]*?</(?:script|style)>", "", clean, flags=re.IGNORECASE)
+            # Strip remaining tags
+            clean = re.sub(r"<[^>]+>", " ", clean)
+            # Unescape html entities
+            return html_lib.unescape(clean).strip()
+
     if mime.startswith("multipart/"):
-        return "\n".join(_decode_part(p) for p in part.get("parts", []))
+        parts_text = [_decode_part(p) for p in part.get("parts", [])]
+        return "\n".join(t for t in parts_text if t.strip())
 
     return ""
 
@@ -145,9 +161,9 @@ def _fetch_thread(thread_id: str) -> dict:
             subject = _header(headers, "Subject") or "(no subject)"
 
         body = _decode_part(payload).strip()
-        # Trim very long bodies to keep context bounded
-        if len(body) > 3000:
-            body = body[:3000] + "\n… [truncated]"
+        # Keep body bounded for cache while allowing full reading
+        if len(body) > 30000:
+            body = body[:30000] + "\n… [truncated]"
 
         messages.append({
             "message_id": msg["id"],
@@ -181,25 +197,42 @@ def _build_current_thread(thread_data: dict) -> str:
 
 
 def _build_contact_profile(contact_email: str) -> str:
+    from langmail.services.profile_service import ProfileService
+
     with get_db() as conn:
         row = conn.execute(
             "SELECT * FROM contacts WHERE email = ?", (contact_email,)
         ).fetchone()
 
+    lines = []
     if not row:
-        return f"# Contact: {contact_email}\n\nNo contact record found in local index."
+        lines.append(f"# Contact: {contact_email}\n\nNo contact record found in local index.")
+    else:
+        name = row["name"] or contact_email
+        lines.extend([
+            f"# Contact: {name} <{contact_email}>",
+            "",
+            f"- **Relationship:** {row['relationship']}",
+            f"- **Category:** {row['category']}",
+            f"- **Total emails:** {row['message_count']} "
+            f"({row['sent_count']} sent, {row['received_count']} received)",
+            f"- **First contact:** {row['first_seen']}",
+            f"- **Last contact:** {row['last_seen']}",
+        ])
 
-    name = row["name"] or contact_email
-    lines = [
-        f"# Contact: {name} <{contact_email}>",
-        "",
-        f"- **Relationship:** {row['relationship']}",
-        f"- **Category:** {row['category']}",
-        f"- **Total emails:** {row['message_count']} "
-        f"({row['sent_count']} sent, {row['received_count']} received)",
-        f"- **First contact:** {row['first_seen']}",
-        f"- **Last contact:** {row['last_seen']}",
+    # Contact-specific learned style rules
+    contact_prefs = [
+        p for p in ProfileService.list_preferences(contact_email)
+        if p.get("contact_email") == contact_email
     ]
+    if contact_prefs:
+        lines.append("\n### Learned Preferences for this Contact:")
+        for p in contact_prefs:
+            lines.append(
+                f"- **{p['type'].title()}:** \"{p['value']}\" "
+                f"(confidence: {int(p.get('confidence', 0.5) * 100)}%, evidence: {p.get('evidence_count', 1)}x)"
+            )
+
     return "\n".join(lines)
 
 
@@ -230,6 +263,35 @@ def _build_recent_history(contact_email: str) -> str:
 
 
 def _build_writing_style(contact_email: str) -> str:
+    from langmail.services.profile_service import ProfileService
+
+    lines = ["# Writing Style & Learned Preferences", ""]
+
+    # 1. Effective learned rules from edit-learning engine
+    effective = ProfileService.get_effective_preferences(contact_email)
+    profile = ProfileService.get_profile()
+
+    lines.append("### Active Writing Style Directives:")
+    if effective.get("greeting"):
+        lines.append(f"- **Preferred Greeting:** \"{effective['greeting']}\"")
+    if effective.get("signoff"):
+        lines.append(f"- **Preferred Sign-off:** \"{effective['signoff']}\"")
+    if effective.get("conciseness"):
+        lines.append(f"- **Length & Conciseness:** {effective['conciseness']}")
+    if effective.get("formatting"):
+        lines.append(f"- **Preferred Formatting:** {effective['formatting']}")
+    if effective.get("avoid_phrases"):
+        lines.append(f"- **Phrases to Strictly Avoid:** {', '.join(f'\"{p}\"' for p in effective['avoid_phrases'])}")
+    if effective.get("preferred_phrases"):
+        lines.append(f"- **Preferred Phrases to Use:** {', '.join(f'\"{p}\"' for p in effective['preferred_phrases'])}")
+
+    tone_val = effective.get("tone") or profile.get("default_tone", "professional")
+    lines.append(f"- **Default Tone:** {tone_val}")
+    if profile.get("signature"):
+        lines.append(f"- **User Signature:** {profile['signature']}")
+    lines.append("")
+
+    # 2. Historical sent email samples
     with get_db() as conn:
         rows = conn.execute(
             """SELECT snippet, date, subject FROM messages
@@ -239,24 +301,18 @@ def _build_writing_style(contact_email: str) -> str:
             (f"%{contact_email}%", settings.max_style_samples),
         ).fetchall()
 
-    if not rows:
-        return (
-            "# Writing Style Samples\n\n"
-            "No previous sent emails to this contact. Match a professional, clear tone."
-        )
+    if rows:
+        lines.append("### Sent Email Snippets to this Contact:")
+        for row in rows:
+            lines.append(f"**{row['subject']}** ({row['date'][:10]})")
+            lines.append(f"> {row['snippet']}")
+            lines.append("")
+    else:
+        lines.append("### Sent Email Snippets:")
+        lines.append("No previous sent emails found for this contact. Apply user style directives above.")
 
-    lines = [
-        "# Writing Style Samples",
-        "",
-        "These are snippets of emails you previously sent to this contact.",
-        "Match this tone and style in your reply.",
-        "",
-    ]
-    for row in rows:
-        lines.append(f"**{row['subject']}** ({row['date'][:10]})")
-        lines.append(f"> {row['snippet']}")
-        lines.append("")
     return "\n".join(lines)
+
 
 
 # ---------------------------------------------------------------------------

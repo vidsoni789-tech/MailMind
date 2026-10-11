@@ -400,6 +400,23 @@ def config(
 
 
 # ---------------------------------------------------------------------------
+# serve
+# ---------------------------------------------------------------------------
+
+@app.command()
+def serve(
+    port: int = typer.Option(settings.backend_port, "--port", "-p", help="Port to run server on"),
+    host: str = typer.Option("127.0.0.1", "--host", "-h", help="Host address to bind"),
+    reload: bool = typer.Option(False, "--reload", help="Enable auto-reload for development"),
+):
+    """Start the PersonalMail AI backend web server."""
+    import uvicorn
+    rprint(f"[bold green]Starting PersonalMail AI backend on http://{host}:{port}[/bold green]")
+    rprint(f"API Documentation: [link=http://{host}:{port}/docs]http://{host}:{port}/docs[/link]")
+    uvicorn.run("langmail.api.app:app", host=host, port=port, reload=reload)
+
+
+# ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 

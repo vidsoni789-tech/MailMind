@@ -16,64 +16,17 @@ from langmail.config import DB_FILE
 
 
 # ---------------------------------------------------------------------------
-# Schema creation
+# Schema creation (Unified with storage/schema.py)
 # ---------------------------------------------------------------------------
 
-SCHEMA_SQL = """
-CREATE TABLE IF NOT EXISTS messages (
-    message_id      TEXT PRIMARY KEY,
-    thread_id       TEXT NOT NULL,
-    subject         TEXT,
-    snippet         TEXT,
-    from_email      TEXT NOT NULL,
-    from_name       TEXT,
-    to_emails       TEXT,
-    cc_emails       TEXT,
-    date            TEXT NOT NULL,
-    labels          TEXT,
-    is_sent         INTEGER DEFAULT 0,
-    is_read         INTEGER DEFAULT 1,
-    has_attachment  INTEGER DEFAULT 0,
-    size_bytes      INTEGER DEFAULT 0
-);
+from langmail.storage.schema import SCHEMA_SQL
 
-CREATE TABLE IF NOT EXISTS contacts (
-    email           TEXT PRIMARY KEY,
-    name            TEXT,
-    domain          TEXT,
-    first_seen      TEXT,
-    last_seen       TEXT,
-    message_count   INTEGER DEFAULT 0,
-    sent_count      INTEGER DEFAULT 0,
-    received_count  INTEGER DEFAULT 0,
-    relationship    TEXT DEFAULT 'rare',
-    category        TEXT DEFAULT 'unknown'
-);
-
-CREATE TABLE IF NOT EXISTS thread_summaries (
-    thread_id       TEXT PRIMARY KEY,
-    contact_email   TEXT,
-    subject         TEXT,
-    message_count   INTEGER,
-    summary         TEXT,
-    last_updated    TEXT,
-    status          TEXT DEFAULT 'active'
-);
-
-CREATE INDEX IF NOT EXISTS idx_messages_thread ON messages(thread_id);
-CREATE INDEX IF NOT EXISTS idx_messages_from   ON messages(from_email);
-CREATE INDEX IF NOT EXISTS idx_messages_date   ON messages(date);
-CREATE INDEX IF NOT EXISTS idx_contacts_domain ON contacts(domain);
-"""
 
 
 def get_db() -> sqlite3.Connection:
-    """Return a SQLite connection, creating the database if needed."""
-    DB_FILE.parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(str(DB_FILE))
-    conn.row_factory = sqlite3.Row
-    conn.executescript(SCHEMA_SQL)
-    return conn
+    """Return a SQLite connection, creating the database and running migrations if needed."""
+    from langmail.storage.database import get_connection
+    return get_connection(DB_FILE)
 
 
 # ---------------------------------------------------------------------------
@@ -223,10 +176,28 @@ def db_get_inbox_stats() -> dict:
 def upsert_message(conn: sqlite3.Connection, msg: dict) -> None:
     """Insert or update a message record in the local index."""
     conn.execute(
-        """INSERT OR REPLACE INTO messages
+        """INSERT INTO messages
            (message_id, thread_id, subject, snippet, from_email, from_name,
-            to_emails, cc_emails, date, labels, is_sent, is_read, has_attachment)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            to_emails, cc_emails, date, labels, is_sent, is_read, has_attachment,
+            category, priority, requires_reply, security_risk)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+           ON CONFLICT(message_id) DO UPDATE SET
+            thread_id=excluded.thread_id,
+            subject=excluded.subject,
+            snippet=excluded.snippet,
+            from_email=excluded.from_email,
+            from_name=excluded.from_name,
+            to_emails=excluded.to_emails,
+            cc_emails=excluded.cc_emails,
+            date=excluded.date,
+            labels=excluded.labels,
+            is_sent=excluded.is_sent,
+            is_read=excluded.is_read,
+            has_attachment=excluded.has_attachment,
+            category=COALESCE(excluded.category, messages.category),
+            priority=COALESCE(excluded.priority, messages.priority),
+            requires_reply=COALESCE(excluded.requires_reply, messages.requires_reply),
+            security_risk=COALESCE(excluded.security_risk, messages.security_risk)""",
         (
             msg["message_id"],
             msg["thread_id"],
@@ -241,6 +212,10 @@ def upsert_message(conn: sqlite3.Connection, msg: dict) -> None:
             int(msg.get("is_sent", False)),
             int(msg.get("is_read", True)),
             int(msg.get("has_attachment", False)),
+            msg.get("category", "other"),
+            msg.get("priority", "medium"),
+            int(msg.get("requires_reply", 0)),
+            msg.get("security_risk", "safe"),
         ),
     )
 

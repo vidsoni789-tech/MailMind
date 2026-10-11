@@ -1,0 +1,22 @@
+version: '3.8'
+
+services:
+  personalmail:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: personalmail-ai
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - LANGMAIL_DATA_DIR=/app/data
+      - LANGMAIL_MODEL=google_genai:gemini-2.5-flash
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+    volumes:
+      - personalmail_data:/app/data
+      - ./credentials.json:/app/credentials.json:ro
+
+volumes:
+  personalmail_data:
+    driver: local

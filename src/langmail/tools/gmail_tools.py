@@ -215,6 +215,7 @@ def gmail_create_draft(
     subject: str,
     body: str,
     thread_id: Optional[str] = None,
+    attachments: Optional[list[str]] = None,
 ) -> dict:
     """Create a Gmail draft. Does NOT send the email — user must send from Gmail.
 
@@ -223,10 +224,14 @@ def gmail_create_draft(
         subject: Email subject line.
         body: Plain text email body.
         thread_id: Optional thread ID to reply within an existing thread.
+        attachments: Optional list of local file paths to attach.
 
     Returns:
         Dict with draft_id and a link to review the draft in Gmail.
     """
+    import mimetypes
+    from pathlib import Path
+
     service = get_gmail_service()
 
     # Build RFC 2822 message
@@ -234,6 +239,22 @@ def gmail_create_draft(
     message["To"] = to
     message["Subject"] = subject
     message.set_content(body)
+
+    if attachments:
+        for fpath in attachments:
+            p = Path(fpath)
+            if p.exists() and p.is_file():
+                ctype, _ = mimetypes.guess_type(str(p))
+                if not ctype:
+                    ctype = "application/octet-stream"
+                maintype, subtype = ctype.split("/", 1)
+                with open(p, "rb") as af:
+                    message.add_attachment(
+                        af.read(),
+                        maintype=maintype,
+                        subtype=subtype,
+                        filename=p.name,
+                    )
 
     raw = base64.urlsafe_b64encode(message.as_bytes()).decode()
 
@@ -251,6 +272,88 @@ def gmail_create_draft(
         "status": "created",
         "note": "Draft saved to Gmail. Open Gmail to review and send.",
         "gmail_url": "https://mail.google.com/mail/u/0/#drafts",
+    }
+
+
+@tool
+def gmail_send_message(
+    to: str,
+    subject: str,
+    body: str,
+    thread_id: Optional[str] = None,
+    attachments: Optional[list[str]] = None,
+) -> dict:
+    """Send an email directly via the Gmail API.
+
+    SECURITY REQUIREMENT: Must only be invoked after explicit human approval.
+
+    Args:
+        to: Recipient email address.
+        subject: Email subject.
+        body: Plain text email body.
+        thread_id: Optional thread ID to send as part of an existing thread.
+        attachments: Optional list of local file paths to attach.
+
+    Returns:
+        Dict confirming send with message_id and status.
+    """
+    import mimetypes
+    from pathlib import Path
+
+    service = get_gmail_service()
+
+    message = email_lib.message.EmailMessage()
+    message["To"] = to
+    message["Subject"] = subject
+    message.set_content(body)
+
+    if attachments:
+        for fpath in attachments:
+            p = Path(fpath)
+            if p.exists() and p.is_file():
+                ctype, _ = mimetypes.guess_type(str(p))
+                if not ctype:
+                    ctype = "application/octet-stream"
+                maintype, subtype = ctype.split("/", 1)
+                with open(p, "rb") as af:
+                    message.add_attachment(
+                        af.read(),
+                        maintype=maintype,
+                        subtype=subtype,
+                        filename=p.name,
+                    )
+
+    raw = base64.urlsafe_b64encode(message.as_bytes()).decode()
+    msg_body: dict = {"raw": raw}
+    if thread_id:
+        msg_body["threadId"] = thread_id
+
+    sent = service.users().messages().send(userId="me", body=msg_body).execute()
+    return {
+        "message_id": sent["id"],
+        "thread_id": sent.get("threadId", thread_id or ""),
+        "status": "sent",
+    }
+
+
+@tool
+def gmail_send_draft(draft_id: str) -> dict:
+    """Send an existing Gmail draft by draft_id.
+
+    SECURITY REQUIREMENT: Must only be invoked after explicit human approval.
+
+    Args:
+        draft_id: The Gmail draft ID to send.
+
+    Returns:
+        Dict confirming send with message_id and status.
+    """
+    service = get_gmail_service()
+    sent = service.users().drafts().send(userId="me", body={"id": draft_id}).execute()
+    return {
+        "message_id": sent["id"],
+        "thread_id": sent.get("threadId", ""),
+        "status": "sent",
     }
 
 

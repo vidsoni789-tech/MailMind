@@ -105,6 +105,8 @@ def run_oauth_flow(client_secrets_file: str) -> Credentials:
                              from Google Cloud Console.
     """
     flow = InstalledAppFlow.from_client_secrets_file(client_secrets_file, SCOPES)
+    auth_url, _ = flow.authorization_url(prompt='consent', access_type='offline')
+    print(f"\nIf your browser does not open automatically, open this link in your browser:\n\n{auth_url}\n")
     creds = flow.run_local_server(port=0)
     _save_credentials(creds)
     return creds

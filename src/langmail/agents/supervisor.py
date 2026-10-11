@@ -86,12 +86,22 @@ def _create_task_tool(registry: dict) -> BaseTool:
         result = sub_agent.invoke(isolated_state)
 
         # Merge any file updates from sub-agent back to parent state
+        sub_content = result["messages"][-1].content
+        if isinstance(sub_content, list):
+            text_parts = [
+                p.get("text", str(p)) if isinstance(p, dict) else str(p)
+                for p in sub_content
+            ]
+            sub_content = "\n".join(text_parts)
+        else:
+            sub_content = str(sub_content)
+
         return Command(
             update={
                 "files": result.get("files", {}),
                 "messages": [
                     ToolMessage(
-                        result["messages"][-1].content,
+                        sub_content,
                         tool_call_id=tool_call_id,
                     )
                 ],

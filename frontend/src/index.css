@@ -1,0 +1,72 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  color-scheme: light;
+
+  /* Premium Cream & White Theme Tokens */
+  --bg-app: #F7F5F0;
+  --bg-sidebar: #FBFAF7;
+  --bg-panel: #FBFAF7;
+  --bg-card: #FFFFFF;
+  --bg-input: #FFFFFF;
+  --bg-hover: #F0EEE7;
+  --bg-selected-nav: #EAEFFF;
+  --border-color: #E7E4DC;
+  --border-subtle: #EFECE6;
+  --text-primary: #252821;
+  --text-secondary: #74766F;
+  --text-muted: #92938C;
+  --accent-primary: #4263EB;
+  --accent-primary-hover: #3451D1;
+  --accent-success: #23845B;
+  --accent-warning: #A66A12;
+  --accent-error: #C24141;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background-color: #F7F5F0;
+  color: #252821;
+  min-height: 100vh;
+  overflow-x: hidden;
+  font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Custom scrollbars - subtle cream style */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #D9D5CC;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #C4C0B5;
+}
+
+/* Focus styles */
+:focus-visible {
+  outline: 2px solid #4263EB;
+  outline-offset: 1px;
+}
+
+/* Selection */
+::selection {
+  background-color: rgba(66, 99, 235, 0.15);
+  color: #252821;
+}

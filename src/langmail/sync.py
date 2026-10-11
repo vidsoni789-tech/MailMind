@@ -17,20 +17,34 @@ Rate limiting:
 """
 
 import json
+import logging
 import sqlite3
+import sys
 import time
 from datetime import datetime, timedelta, timezone
 from email.utils import parseaddr, parsedate_to_datetime
 from typing import Iterator
+
+logger = logging.getLogger(__name__)
 
 from rich.console import Console
 from rich.progress import BarColumn, Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
 
 from langmail.auth import get_gmail_service
 from langmail.config import DATA_DIR, settings
+from langmail.services.email_service import EmailService
 from langmail.tools.db_tools import get_db, upsert_contact, upsert_message
 
-console = Console()
+if sys.platform == "win32":
+    try:
+        if sys.stdout.encoding != "utf-8":
+            sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+        if sys.stderr.encoding != "utf-8":
+            sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+
+console = Console(legacy_windows=False)
 
 # File that stores the last Gmail history ID for incremental sync
 HISTORY_ID_FILE = DATA_DIR / "last_history_id.txt"
@@ -111,6 +125,14 @@ def _process_message(raw: dict, conn: sqlite3.Connection) -> None:
     to_emails = [e.strip() for e in to_raw.split(",") if e.strip()] if to_raw else []
     cc_emails = [e.strip() for e in cc_raw.split(",") if e.strip()] if cc_raw else []
 
+    triage = EmailService.classify_metadata(
+        subject=subject,
+        snippet=raw.get("snippet", ""),
+        from_email=from_email,
+        from_name=from_name,
+        labels=labels,
+    )
+
     msg_record = {
         "message_id": raw["id"],
         "thread_id": raw.get("threadId", raw["id"]),
@@ -125,6 +147,10 @@ def _process_message(raw: dict, conn: sqlite3.Connection) -> None:
         "is_sent": is_sent,
         "is_read": is_read,
         "has_attachment": has_attachment,
+        "category": triage["category"],
+        "priority": triage["priority"],
+        "requires_reply": 1 if triage["requires_reply"] else 0,
+        "security_risk": triage["security_risk"],
     }
     upsert_message(conn, msg_record)
 
@@ -225,15 +251,22 @@ def run_initial_sync(months: int | None = None) -> dict:
     Returns:
         Dict with stats: messages_synced, contacts_found, duration_seconds.
     """
-    months = months or settings.sync_depth_months
+    effective_months = months if months is not None else settings.sync_depth_months
     service = get_gmail_service()
     conn = get_db()
 
-    query = f"after:{_cutoff_date(months)}"
+
+
+    if effective_months == 0:
+        cutoff = (datetime.now(timezone.utc) - timedelta(days=7)).strftime("%Y/%m/%d")
+        query = f"after:{cutoff}"
+    else:
+        query = f"after:{_cutoff_date(effective_months)}"
+
     start = time.time()
     messages_synced = 0
 
-    console.print(f"[bold blue]Starting full sync (last {months} months)...[/bold blue]")
+    console.print(f"[bold blue]Starting sync (cutoff query: {query})...[/bold blue]")
 
     with Progress(
         SpinnerColumn(),
@@ -322,12 +355,15 @@ def run_incremental_sync() -> dict:
                     # New messages
                     for msg_added in record.get("messagesAdded", []):
                         msg_id = msg_added["message"]["id"]
-                        raw = service.users().messages().get(
-                            userId="me", id=msg_id, format="metadata",
-                            metadataHeaders=["From", "To", "Cc", "Subject", "Date"],
-                        ).execute()
-                        _process_message(raw, conn)
-                        added += 1
+                        try:
+                            raw = service.users().messages().get(
+                                userId="me", id=msg_id, format="metadata",
+                                metadataHeaders=["From", "To", "Cc", "Subject", "Date"],
+                            ).execute()
+                            _process_message(raw, conn)
+                            added += 1
+                        except Exception as e:
+                            logger.warning(f"Could not fetch added message {msg_id}: {e}")
 
                     # Deleted messages — mark as deleted
                     for msg_deleted in record.get("messagesDeleted", []):

@@ -71,6 +71,8 @@ class Settings(BaseModel):
         default=5,
         description="How often to poll for new emails in watch mode",
     )
+    backend_port: int = Field(default=8000, description="FastAPI backend port")
+    frontend_url: str = Field(default="http://localhost:5173", description="Frontend origin for CORS")
     log_level: str = Field(default="info")
 
 
@@ -82,11 +84,22 @@ def load_settings() -> Settings:
         with open(CONFIG_FILE) as f:
             data = json.load(f)
 
+    # Automatic fallback: if GOOGLE_API_KEY is available and ANTHROPIC_API_KEY is not
+    has_google = bool(os.getenv("GOOGLE_API_KEY") or os.getenv("GEMINI_API_KEY"))
+    has_anthropic = bool(os.getenv("ANTHROPIC_API_KEY"))
+    if has_google and not has_anthropic:
+        data.setdefault("model", "google_genai:gemini-2.5-flash")
+        data.setdefault("summarization_model", "google_genai:gemini-2.5-flash")
+
     # Environment variable overrides
     if model := os.getenv("LANGMAIL_MODEL"):
         data["model"] = model
     if summ_model := os.getenv("LANGMAIL_SUMMARIZATION_MODEL"):
         data["summarization_model"] = summ_model
+    if port := os.getenv("BACKEND_PORT"):
+        data["backend_port"] = int(port)
+    if front_url := os.getenv("FRONTEND_URL"):
+        data["frontend_url"] = front_url
 
     return Settings(**data)
 
